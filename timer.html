@@ -284,6 +284,7 @@ function tick() {
     setRow.style.opacity = '1';
     presets.forEach(function(b) { b.style.pointerEvents = ''; });
     beep();
+    if (navigator.vibrate) navigator.vibrate([400, 100, 400, 100, 400]);
   }
 }
 
