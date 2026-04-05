@@ -71,8 +71,12 @@
   @media (prefers-color-scheme: dark) {
     .time-display { color: #f0f0f0; }
   }
-  .time-display.warning { color: #BA7517 !important; }
-  .time-display.danger  { color: #E24B4A !important; }
+  .time-display.warning { color: #BA7517; }
+  .time-display.danger  { color: #E24B4A; }
+  @media (prefers-color-scheme: dark) {
+    .time-display.warning { color: #BA7517; }
+    .time-display.danger  { color: #E24B4A; }
+  }
 
   .done-msg {
     font-size: 13px;
@@ -178,7 +182,7 @@
     <svg viewBox="0 0 220 220" width="220" height="220" xmlns="http://www.w3.org/2000/svg">
       <circle id="ring-bg"   cx="110" cy="110" r="95" fill="none" stroke-width="10"/>
       <circle id="ring-fill" cx="110" cy="110" r="95" fill="none" stroke-width="10"
-              stroke-dasharray="596.9" stroke-dashoffset="0"/>
+              stroke-dashoffset="0"/>
     </svg>
     <div class="ring-inner">
       <div class="time-display" id="time-display">05:00</div>
@@ -194,9 +198,9 @@
   </div>
 
   <div class="set-row" id="set-row">
-    <button class="adj-btn" id="minus">−</button>
+    <button class="adj-btn" id="minus" aria-label="Decrease by 1 minute">−</button>
     <div class="set-display" id="set-display">05:00</div>
-    <button class="adj-btn" id="plus">+</button>
+    <button class="adj-btn" id="plus" aria-label="Increase by 1 minute">+</button>
   </div>
 
   <div class="controls">
@@ -207,20 +211,21 @@
 
 <script>
 const CIRC = 2 * Math.PI * 95;
-var setSeconds = 300;
-var remaining  = 300;
-var total      = 300;
-var running    = false;
-var interval   = null;
+let setSeconds = 300;
+let remaining  = 300;
+let total      = 300;
+let running    = false;
+let interval   = null;
+let endTime    = 0;
 
-var display  = document.getElementById('time-display');
-var setDisp  = document.getElementById('set-display');
-var ring     = document.getElementById('ring-fill');
-var startBtn = document.getElementById('start-btn');
-var resetBtn = document.getElementById('reset-btn');
-var doneMsg  = document.getElementById('done-msg');
-var setRow   = document.getElementById('set-row');
-var presets  = document.querySelectorAll('.preset-btn');
+const display  = document.getElementById('time-display');
+const setDisp  = document.getElementById('set-display');
+const ring     = document.getElementById('ring-fill');
+const startBtn = document.getElementById('start-btn');
+const resetBtn = document.getElementById('reset-btn');
+const doneMsg  = document.getElementById('done-msg');
+const setRow   = document.getElementById('set-row');
+const presets  = document.querySelectorAll('.preset-btn');
 
 ring.style.strokeDasharray = CIRC;
 
@@ -252,9 +257,9 @@ function render() {
 
 function beep() {
   try {
-    var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.frequency.value = 880;
@@ -263,27 +268,30 @@ function beep() {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 1.2);
+    osc.onended = function() { ctx.close(); };
   } catch(e) {}
 }
 
 function tick() {
+  remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+  render();
   if (remaining <= 0) {
     clearInterval(interval);
+    interval = null;
     running = false;
     startBtn.textContent = 'Start';
     doneMsg.textContent = 'Done!';
     setRow.style.opacity = '1';
     presets.forEach(function(b) { b.style.pointerEvents = ''; });
     beep();
-    return;
   }
-  remaining--;
-  render();
 }
 
 function start() {
   if (remaining <= 0) return;
+  clearInterval(interval);
   running = true;
+  endTime = Date.now() + remaining * 1000;
   doneMsg.textContent = '';
   startBtn.textContent = 'Pause';
   setRow.style.opacity = '0.3';
@@ -301,13 +309,17 @@ function pause() {
 
 function reset() {
   clearInterval(interval);
+  interval = null;
   running = false;
   remaining = setSeconds;
   total = setSeconds;
   startBtn.textContent = 'Start';
   doneMsg.textContent = '';
   setRow.style.opacity = '1';
-  presets.forEach(function(b) { b.style.pointerEvents = ''; });
+  presets.forEach(function(b) {
+    b.style.pointerEvents = '';
+    b.classList.toggle('active', parseInt(b.dataset.s) === setSeconds);
+  });
   render();
 }
 
